@@ -1,0 +1,357 @@
+{{>partial_header}}
+package {{packageName}}
+
+{{#operations}}
+import (
+	"bytes"
+	"context"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+{{#imports}}	"{{import}}"
+{{/imports}}
+)
+
+// Linger please
+var _ context.Context
+
+{{#generateInterfaces}}
+// {{baseName}}API describes the necessary methods to adhere to this interface.
+type {{baseName}}API interface {
+{{#operation}}
+	{{nickname}}(ctx context.Context{{#pathParams}}, {{paramName}} {{{dataType}}}{{/pathParams}}) {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request
+{{#formParams.0}}
+	{{nickname}}WithData(ctx context.Context{{#pathParams}}, {{paramName}} {{{dataType}}}{{/pathParams}}, m map[string]interface{}) {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request
+{{/formParams.0}}
+	{{nickname}}Execute(r {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request) ({{#returnType}}{{{.}}}, {{/returnType}}error)
+{{/operation}}
+}
+{{/generateInterfaces}}
+
+// {{baseName}}Service {{baseName}} service.
+type {{baseName}}Service service
+{{#operation}}
+
+// {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request represents a request type.
+type {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request struct {
+	ctx context.Context
+	APIService {{#generateInterfaces}}{{baseName}}API{{/generateInterfaces}}{{^generateInterfaces}}*{{baseName}}Service{{/generateInterfaces}}
+{{#allParams}}
+	{{paramName}} {{^isPathParam}}*{{/isPathParam}}{{{dataType}}}
+{{/allParams}}
+}
+{{#allParams}}{{^isPathParam}}
+{{#vendorExtensions.x-param-string-array}}
+// {{vendorExtensions.x-param-string-array}} sets {{paramName}} on the request type.
+func (r {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request) {{vendorExtensions.x-param-string-array}}({{paramName}} []{{{dataType}}}) {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request {
+	r.{{paramName}} = PtrString(strings.Join({{paramName}}, ","))
+{{/vendorExtensions.x-param-string-array}}
+{{^vendorExtensions.x-param-string-array}}
+// {{#vendorExtensions.x-export-param-name-override}}{{vendorExtensions.x-export-param-name-override}}{{/vendorExtensions.x-export-param-name-override}}{{^vendorExtensions.x-export-param-name-override}}{{vendorExtensions.x-export-param-name}}{{/vendorExtensions.x-export-param-name-override}} sets {{paramName}} on the request type.
+func (r {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request) {{#vendorExtensions.x-export-param-name-override}}{{vendorExtensions.x-export-param-name-override}}{{/vendorExtensions.x-export-param-name-override}}{{^vendorExtensions.x-export-param-name-override}}{{vendorExtensions.x-export-param-name}}{{/vendorExtensions.x-export-param-name-override}}({{paramName}} {{{dataType}}}) {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request {
+	r.{{paramName}} = &{{paramName}}
+{{/vendorExtensions.x-param-string-array}}
+	return r
+}
+
+{{/isPathParam}}{{/allParams}}
+// Execute executes the request.
+func (r {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request) Execute() ({{#returnType}}{{{.}}}, {{/returnType}} error) {
+	return r.APIService.{{nickname}}Execute(r)
+}
+
+// {{operationId}}{{#summary}} {{{.}}}{{/summary}}{{^summary}} Method for {{operationId}}{{/summary}}.
+func (a *{{{baseName}}}Service) {{{nickname}}}(ctx context.Context{{#pathParams}}, {{paramName}} {{{dataType}}}{{/pathParams}}) {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request {
+	return {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request{
+		ctx: ctx,
+		APIService: a,
+  {{#pathParams}}
+		{{paramName}}: {{paramName}},
+  {{/pathParams}}
+	}
+}
+
+// {{operationId}}WithData{{#summary}} {{{.}}}{{/summary}}{{^summary}} Method for {{operayionId}}{{/summary}}.
+// The use of this method is discouraged as it does not provide the level of
+// type safety afforded by the field methods on the request type.
+func (a *{{{baseName}}}Service) {{{nickname}}}WithData(ctx context.Context{{#pathParams}}, {{paramName}} {{{dataType}}}{{/pathParams}}, m map[string]interface{}) {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request {
+	r := a.{{{nickname}}}(ctx{{#pathParams}}, {{paramName}}{{/pathParams}})
+{{#formParams}}
+
+	if prop, ok := m["{{baseName}}"].({{{dataType}}}); ok {
+		r.{{paramName}} = &prop
+	}
+  {{^last}}
+
+  {{/last}}
+{{/formParams}}
+	return r
+}
+
+// Execute executes the request.
+func (a *{{{baseName}}}Service) {{nickname}}Execute(r {{#structPrefix}}{{&classname}}{{/structPrefix}}API{{operationId}}Request) ({{#returnType}}{{{.}}}, {{/returnType}}error) {
+	var (
+		requestBody          interface{}
+		requestFormFieldName string
+		requestFileName      string
+		requestFileBytes     []byte
+  {{#returnType}}
+		returnValue          {{{.}}}
+  {{/returnType}}
+	)
+
+	basePath, err := a.client.ServerURLWithContext(r.ctx, "{{{baseName}}}Service.{{{nickname}}}")
+	if err != nil {
+		return {{#returnType}}returnValue, {{/returnType}}err
+	}
+
+	requestPath := basePath + "{{{path}}}"{{#pathParams}}
+	requestPath = strings.Replace(requestPath, "{"+"{{baseName}}"+"}", url.PathEscape(parameterToString(r.{{paramName}})), -1){{/pathParams}}
+
+	headerParams := make(map[string]string)
+	queryParams := url.Values{}
+	formParams := url.Values{}
+
+{{#allParams}}
+{{#required}}
+{{^isPathParam}}
+	if r.{{paramName}} == nil {
+		return {{#returnType}}returnValue, {{/returnType}}errorf("{{paramName}} is required and must be specified")
+	}
+{{/isPathParam}}
+{{#minItems}}
+	if len({{^isPathParam}}*{{/isPathParam}}r.{{paramName}}) < {{minItems}} {
+		return {{#returnType}}returnValue, {{/returnType}}errorf("{{paramName}} must have at least {{minItems}} elements")
+	}
+{{/minItems}}
+{{#maxItems}}
+	if len({{^isPathParam}}*{{/isPathParam}}r.{{paramName}}) > {{maxItems}} {
+		return {{#returnType}}returnValue, {{/returnType}}errorf("{{paramName}} must have less than {{maxItems}} elements")
+	}
+{{/maxItems}}
+{{#minLength}}
+	if strlen({{^isPathParam}}*{{/isPathParam}}r.{{paramName}}) < {{minLength}} {
+		return {{#returnType}}returnValue, {{/returnType}}errorf("{{paramName}} must have at least {{minLength}} elements")
+	}
+{{/minLength}}
+{{#maxLength}}
+	if strlen({{^isPathParam}}*{{/isPathParam}}r.{{paramName}}) > {{maxLength}} {
+		return {{#returnType}}returnValue, {{/returnType}}errorf("{{paramName}} must have less than {{maxLength}} elements")
+	}
+{{/maxLength}}
+{{#minimum}}
+{{#isString}}
+	{{paramName}}Txt, err := atoi({{^isPathParam}}*{{/isPathParam}}r.{{paramName}})
+	if {{paramName}}Txt < {{minimum}} {
+{{/isString}}
+{{^isString}}
+	if {{^isPathParam}}*{{/isPathParam}}r.{{paramName}} < {{minimum}} {
+{{/isString}}
+		return {{#returnType}}returnValue, {{/returnType}}errorf("{{paramName}} must be greater than {{minimum}}")
+	}
+{{/minimum}}
+{{#maximum}}
+{{#isString}}
+  {{paramName}}Txt, err := atoi({{^isPathParam}}*{{/isPathParam}}r.{{paramName}})
+	if {{paramName}}Txt > {{maximum}} {
+{{/isString}}
+{{^isString}}
+	if {{^isPathParam}}*{{/isPathParam}}r.{{paramName}} > {{maximum}} {
+{{/isString}}
+		return {{#returnType}}returnValue, {{/returnType}}errorf("{{paramName}} must be less than {{maximum}}")
+	}
+{{/maximum}}
+{{/required}}
+
+{{/allParams}}
+
+{{#queryParams}}
+{{#required}}
+{{#isCollectionFormatMulti}}
+	{
+		t := *r.{{paramName}}
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				queryParams.Add("{{baseName}}", parameterToString(s.Index(i)))
+			}
+		} else {
+			queryParams.Add("{{baseName}}", parameterToString(t))
+		}
+	}
+{{/isCollectionFormatMulti}}
+{{^isCollectionFormatMulti}}
+	queryParams.Add("{{baseName}}", parameterToString(*r.{{paramName}}))
+{{/isCollectionFormatMulti}}
+{{/required}}
+{{^required}}
+	if r.{{paramName}} != nil {
+  {{#isCollectionFormatMulti}}
+		t := *r.{{paramName}}
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				queryParams.Add("{{baseName}}", parameterToString(s.Index(i)))
+			}
+		} else {
+			queryParams.Add("{{baseName}}", parameterToString(t))
+		}
+  {{/isCollectionFormatMulti}}
+  {{^isCollectionFormatMulti}}
+		queryParams.Add("{{baseName}}", parameterToString(*r.{{paramName}}))
+  {{/isCollectionFormatMulti}}
+	}
+{{/required}}
+{{/queryParams}}
+	// Determine the Content-Type header.
+{{=<% %>=}}
+	contentTypes := []string{<%#consumes%>"<%&mediaType%>"<%^-last%>, <%/-last%><%/consumes%>}
+<%={{ }}=%>
+
+	// Set Content-Type header
+	requestContentTypeHeader := selectHeaderContentType(contentTypes)
+	if requestContentTypeHeader != "" {
+		headerParams["Content-Type"] = requestContentTypeHeader
+	}
+
+	// Determine the Accept header.
+{{=<% %>=}}
+	accepts := []string{<%#produces%>"<%&mediaType%>"<%^-last%>, <%/-last%><%/produces%>}
+<%={{ }}=%>
+
+	// Set Accept header.
+	requestAcceptHeader := selectHeaderAccept(accepts)
+	if requestAcceptHeader != "" {
+		headerParams["Accept"] = requestAcceptHeader
+	}
+
+{{#headerParams}}
+{{#required}}
+	headerParams["{{baseName}}"] = parameterToString(*r.{{paramName}})
+{{/required}}
+{{^required}}
+	if r.{{paramName}} != nil {
+		headerParams["{{baseName}}"] = parameterToString(*r.{{paramName}})
+	}
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#isFile}}
+	requestFormFieldName = "{{baseName}}"
+{{#required}}
+	requestFile := *r.{{paramName}}
+{{/required}}
+{{^required}}
+	var requestFile {{dataType}}
+	if r.{{paramName}} != nil {
+		requestFile = *r.{{paramName}}
+	}
+{{/required}}
+	if requestFile != nil {
+		fbs, _ := ioutil.ReadAll(requestFile)
+		requestFileBytes = fbs
+		requestFileName = requestFile.Name()
+		requestFile.Close()
+	}
+{{/isFile}}
+{{^isFile}}
+{{#required}}
+	formParams.Add("{{baseName}}", parameterToString(*r.{{paramName}}))
+{{/required}}
+{{^required}}
+{{#isModel}}
+
+	if r.{{paramName}} != nil {
+		paramJson, err := parameterToJson(*r.{{paramName}})
+		if err != nil {
+			return {{#returnType}}returnValue, {{/returnType}}err
+		}
+		formParams.Add("{{baseName}}", paramJson)
+	}
+{{/isModel}}
+{{^isModel}}
+
+	if r.{{paramName}} != nil {
+  {{#isArray}}
+		// Explicity empty array. This indictes the consumer intended to pass an
+		// empty value and therefore likely want to nullify the field.
+		if len(*r.{{paramName}}) == 0 {
+			formParams.Add("{{baseName}}[]", "")
+		}
+		for _, val := range *r.{{paramName}} {
+			formParams.Add("{{baseName}}[]", parameterToString(val))
+		}
+  {{/isArray}}
+  {{^isArray}}
+		formParams.Add("{{baseName}}", parameterToString(*r.{{paramName}}))
+  {{/isArray}}
+	}
+{{/isModel}}
+{{/required}}
+{{/isFile}}
+{{/formParams}}
+{{#bodyParams}}
+	// body params
+	requestBody = r.{{paramName}}
+{{/bodyParams}}
+	req, err := a.client.prepareRequest(r.ctx, requestPath, http.Method{{httpMethod}}, requestBody, headerParams, queryParams, formParams, requestFormFieldName, requestFileName, requestFileBytes)
+	if err != nil {
+		return {{#returnType}}returnValue, {{/returnType}}err
+	}
+
+	res, err := a.client.callAPI(req)
+	if err != nil || res == nil {
+		return {{#returnType}}returnValue, {{/returnType}}err
+	}
+
+	responseBody, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	res.Body = ioutil.NopCloser(bytes.NewBuffer(responseBody))
+	if err != nil {
+		return {{#returnType}}returnValue, {{/returnType}}err
+	}
+
+	responseContentType := res.Header.Get("Content-Type")
+
+	if res.StatusCode >= 300 {
+		var v APIError
+  {{#responses}}
+  {{#dataType}}
+  {{^is1xx}}
+  {{^is2xx}}
+  {{^wildcard}}
+		if res.StatusCode == {{{code}}} {
+  {{/wildcard}}
+			if err := a.client.decode(&v, responseBody, responseContentType); err != nil {
+				return {{#returnType}}returnValue, {{/returnType}}{{{dataType}}}{
+					Status:  res.StatusCode,
+					Message: "failed to deserialise error response",
+					parent:  err,
+				}
+			}
+  {{^wildcard}}
+		}
+  {{/wildcard}}
+  {{/is2xx}}
+  {{/is1xx}}
+  {{/dataType}}
+  {{/responses}}
+		v.Status = res.StatusCode
+		return {{#returnType}}returnValue, {{/returnType}}v
+	}
+
+{{#returnType}}
+	if err := a.client.decode(&returnValue, responseBody, responseContentType); err != nil {
+		return {{#returnType}}returnValue, {{/returnType}}APIError{
+			Status:  res.StatusCode,
+			Message: "failed to deserialise response body",
+			parent:  err,
+		}
+	}
+
+{{/returnType}}
+	return {{#returnType}}returnValue, {{/returnType}}nil
+}
+{{/operation}}
+{{/operations}}

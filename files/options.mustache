@@ -1,0 +1,261 @@
+{{>partial_header}}
+package {{packageName}}
+
+import (
+	"fmt"
+	"net/http"
+	"runtime"
+	"strings"
+	"time"
+
+	"{{gitHost}}/{{gitUserId}}/{{gitRepoId}}/backoff"
+)
+
+var defaultOptions = options{
+	backoff:    backoff.Constant{BaseDelay: 0},
+	client:     http.DefaultClient,
+	headers:    http.Header{},
+	maxRetries: 1,
+	userAgent:  "{{#httpUserAgent}}{{{.}}}{{/httpUserAgent}}{{^httpUserAgent}}OpenAPI-Generator/{{{packageVersion}}}/go{{/httpUserAgent}}/" + runtime.Version(),
+{{#servers}}
+{{#-first}}
+	servers: ServerConfigurations{
+{{/-first}}
+		ServerConfiguration{
+			URL:         "{{{url}}}",
+			Description: "{{{description}}}{{^description}}No description provided{{/description}}",
+    {{#variables}}
+    {{#-first}}
+			Variables:   map[string]ServerVariable{
+    {{/-first}}
+				"{{{name}}}": ServerVariable{
+					Description:  "{{{description}}}{{^description}}No description provided{{/description}}",
+					DefaultValue: "{{{defaultValue}}}",
+        {{#enumValues}}
+        {{#-first}}
+					EnumValues:   []string{
+        {{/-first}}
+						"{{{.}}}",
+        {{#-last}}
+					},
+        {{/-last}}
+        {{/enumValues}}
+				},
+    {{#-last}}
+			},
+    {{/-last}}
+    {{/variables}}
+		},
+{{#-last}}
+	},
+{{/-last}}
+{{/servers}}
+{{#apiInfo}}
+	operationServers: map[string]ServerConfigurations{
+  {{#apis}}
+  {{#operations}}
+  {{#operation}}
+  {{#servers}}
+  {{#-first}}
+		"{{{classname}}}Service.{{{nickname}}}": ServerConfigurations{
+  {{/-first}}
+			ServerConfiguration{
+				URL:         "{{{url}}}",
+				Description: "{{{description}}}{{^description}}No description provided{{/description}}",
+      {{#variables}}
+      {{#-first}}
+				Variables:   map[string]ServerVariable{
+      {{/-first}}
+					"{{{name}}}": ServerVariable{
+						Description:  "{{{description}}}{{^description}}No description provided{{/description}}",
+						DefaultValue: "{{{defaultValue}}}",
+          {{#enumValues}}
+          {{#-first}}
+						EnumValues:   []string{
+          {{/-first}}
+							"{{{.}}}",
+          {{#-last}}
+						},
+          {{/-last}}
+          {{/enumValues}}
+					},
+      {{#-last}}
+				},
+      {{/-last}}
+      {{/variables}}
+			},
+	{{#-last}}
+		},
+	{{/-last}}
+	{{/servers}}
+	{{/operation}}
+	{{/operations}}
+	{{/apis}}
+	},
+{{/apiInfo}}
+}
+
+// ServerVariable stores the information about a server variable.
+type ServerVariable struct {
+	Description  string
+	DefaultValue string
+	EnumValues   []string
+}
+
+// ServerConfiguration stores the information about a server.
+type ServerConfiguration struct {
+	URL         string
+	Description string
+	Variables   map[string]ServerVariable
+}
+
+// ServerConfigurations stores multiple ServerConfiguration items.
+type ServerConfigurations []ServerConfiguration
+
+// URL formats template on a index using given variables.
+func (sc ServerConfigurations) URL(index int, variables map[string]string) (string, error) {
+	if index < 0 || index > len(sc) {
+		return "", fmt.Errorf("index %v out of range %v", index, len(sc)-1)
+	}
+
+	server := sc[index]
+	url := server.URL
+
+	// Go through variables and replace placeholders.
+	for name, variable := range server.Variables {
+		if value, ok := variables[name]; ok {
+			found := bool(len(variable.EnumValues) == 0)
+			for _, enumValue := range variable.EnumValues {
+				if value == enumValue {
+					found = true
+				}
+			}
+			if !found {
+				return "", fmt.Errorf("The variable %s in the server URL has invalid value %v. Must be %v", name, value, variable.EnumValues)
+			}
+			url = strings.Replace(url, "{"+name+"}", value, -1)
+		} else {
+			url = strings.Replace(url, "{"+name+"}", variable.DefaultValue, -1)
+		}
+	}
+
+	return url, nil
+}
+
+// Strategy describes a common interface to satisfy a backoff strategy when a
+// request fails.
+type Strategy interface {
+	Backoff(retries int) time.Duration
+}
+
+// RequestCredentials describes a common interface for attaching security
+// credentials to every outbound request.
+type RequestCredentials interface {
+	AddCredentials(r *http.Request) *http.Request
+}
+
+// options configures a HTTP client and connnection. Options are set by the
+// Option values passed to NewClient.
+type options struct {
+	backoff          Strategy
+	client           *http.Client
+	credentials      RequestCredentials
+	debug            bool
+	disableRetry     bool
+	headers          http.Header
+	host             string
+	maxRetries       int
+	operationServers map[string]ServerConfigurations
+	servers          ServerConfigurations
+	userAgent        string
+}
+
+// Option consigures a HTTP client and connection.
+type Option func(*options)
+
+// WithBackoff configures the backoff strategy after failed requests.
+func WithBackoff(s Strategy) Option {
+	return func(o *options) {
+		o.backoff = s
+	}
+}
+
+// WithHTTPClient configures the HTTP client used to perform requests
+func WithHTTPClient(c *http.Client) Option {
+	return func(o *options) {
+		o.client = c
+	}
+}
+
+// WithRequestCredentials configures the HTTP client to forward authentication
+// credentials.
+func WithRequestCredentials(creds RequestCredentials) Option {
+	return func(o *options) {
+		o.credentials = creds
+	}
+}
+
+// WithDebug configures the client to output debug information when making
+// requests.
+func WithDebug() Option {
+	return func(o *options) {
+		o.debug = true
+	}
+}
+
+// WithDisableRetry configures the client to disable request retries. Retry
+// support is currently enabled by default and will make `maxRetries` attempts
+// before failure.
+func WithDisableRetry() Option {
+	return func(o *options) {
+		o.disableRetry = true
+	}
+}
+
+// WithHeaders configures the client to add supplied headers to each request.
+// These headers will be appended to existing headers set by other client
+// options and endpoint specific header parameters.
+func WithHeaders(headers http.Header) Option {
+	return func(o *options) {
+		o.headers = headers
+	}
+}
+
+// WithHeader configures the client to add the supplied header to each request.
+// This header will be appended to an existing header set by other client
+// options and endpoint specific header parameters.
+func WithHeader(name, value string) Option {
+	return func(o *options) {
+		o.headers.Add(name, value)
+	}
+}
+
+// WithHost configures the base host address for the API client.
+func WithHost(host string) Option {
+	return func(o *options) {
+		o.host = host
+	}
+}
+
+// WithMaxRetries configures the maximum number of retries that can be made
+// before the request is considered to have failed.
+func WithMaxRetries(retries int) Option {
+	return func(o *options) {
+		o.maxRetries = retries
+	}
+}
+
+// WithUserAgent configures the HTTP client user agent.
+func WithUserAgent(s string) Option {
+	return func(o *options) {
+		o.userAgent = s
+	}
+}
+
+func applyOptions(opts []Option) options {
+	cfg := defaultOptions
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return cfg
+}

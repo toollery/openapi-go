@@ -1,0 +1,150 @@
+{{>partial_header}}
+package backoff_test
+
+import (
+	"testing"
+	"time"
+
+	"{{gitHost}}/{{gitUserId}}/{{gitRepoId}}/backoff"
+)
+
+func TestConstant(t *testing.T) {
+	t.Run("returns a constant duration", func(t *testing.T) {
+		b := backoff.Constant{
+			BaseDelay: 6.0 * time.Second,
+		}
+
+		retries := 5
+
+		expected := b.BaseDelay
+		got := b.Backoff(retries)
+
+		if expected != got {
+			t.Errorf("expected: %s, got: %s", expected, got)
+		}
+	})
+}
+
+func TestExponential(t *testing.T) {
+	t.Run("returns the next duration in an exponential sequence", func(t *testing.T) {
+		b := backoff.Exponential{
+			backoff.Config{
+				BaseDelay:  1.0 * time.Second,
+				Multiplier: 2.0, // Exponential factor.
+				Jitter:     0,   // To make test predictible.
+				MaxDelay:   120 * time.Second,
+			},
+		}
+
+		retries := 5
+
+		expected := time.Duration(32 * time.Second)
+		got := b.Backoff(retries)
+
+		if expected != got {
+			t.Errorf("expected: %s, got: %s", expected, got)
+		}
+	})
+
+	t.Run("returns the base delay when there are no retries remaining", func(t *testing.T) {
+		b := backoff.Exponential{
+			backoff.Config{
+				BaseDelay:  1.0 * time.Second,
+				Multiplier: 2.0, // Exponential factor.
+				Jitter:     0,   // To make test predictible.
+				MaxDelay:   120 * time.Second,
+			},
+		}
+
+		retries := 0
+
+		expected := b.BaseDelay
+		got := b.Backoff(retries)
+
+		if expected != got {
+			t.Errorf("expected: %s, got: %s", expected, got)
+		}
+	})
+
+	t.Run("returns the maximum delay when the calculated backoff exceeds the maximum", func(t *testing.T) {
+		b := backoff.Exponential{
+			backoff.Config{
+				BaseDelay:  1.0 * time.Second,
+				Multiplier: 2.0, // Exponential factor.
+				Jitter:     0,   // To make test predictible.
+				MaxDelay:   120 * time.Second,
+			},
+		}
+
+		retries := 7
+
+		expected := b.MaxDelay
+		got := b.Backoff(retries)
+
+		if expected != got {
+			t.Errorf("expected: %s, got: %s", expected, got)
+		}
+	})
+}
+
+func TestLinear(t *testing.T) {
+	t.Run("returns the next duration in a linear sequence", func(t *testing.T) {
+		b := backoff.Linear{
+			backoff.Config{
+				BaseDelay:  1.0 * time.Second,
+				Multiplier: 1.0,
+				Jitter:     0, // To make test predictible.
+				MaxDelay:   120 * time.Second,
+			},
+		}
+
+		retries := 5
+
+		expected := time.Duration(5 * time.Second)
+		got := b.Backoff(retries)
+
+		if expected != got {
+			t.Errorf("expected: %s, got: %s", expected, got)
+		}
+	})
+
+	t.Run("returns the base delay when there are no retries remaining", func(t *testing.T) {
+		b := backoff.Linear{
+			backoff.Config{
+				BaseDelay:  1.0 * time.Second,
+				Multiplier: 1.0,
+				Jitter:     0, // To make test predictible.
+				MaxDelay:   120 * time.Second,
+			},
+		}
+
+		retries := 0
+
+		expected := b.BaseDelay
+		got := b.Backoff(retries)
+
+		if expected != got {
+			t.Errorf("expected: %s, got: %s", expected, got)
+		}
+	})
+
+	t.Run("returns the maximum delay when the calculated backoff exceeds the maximum", func(t *testing.T) {
+		b := backoff.Linear{
+			backoff.Config{
+				BaseDelay:  1.0 * time.Second,
+				Multiplier: 1.0,
+				Jitter:     0, // To make test predictible.
+				MaxDelay:   120 * time.Second,
+			},
+		}
+
+		retries := 121
+
+		expected := b.MaxDelay
+		got := b.Backoff(retries)
+
+		if expected != got {
+			t.Errorf("expected: %s, got: %s", expected, got)
+		}
+	})
+}

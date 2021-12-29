@@ -1,0 +1,57 @@
+{{>partial_header}}
+package throttle
+
+import (
+	"context"
+	"net/http"
+)
+
+// Limiter describes a common interface to describe the constraint on a
+// request. If the constrain is satified then the request can continue.
+type Limiter interface {
+	Wait(context.Context) error
+}
+
+// LimiterFunc is an adapter to allow the use of functions without a receiver
+// as limiters. If `f` is a function with the appropriate signature,
+// LimiterFunc(f) is a Limiter that calls `f`.
+type LimiterFunc func(context.Context) error
+
+// Wait calls the underlying function reprsented by the receiver of this
+// method.
+func (f LimiterFunc) Wait(ctx context.Context) error {
+	return f(ctx)
+}
+
+// Transport implements http.RoundTripper and throttles requests described by
+// the constraints of one or more Limiter values.
+type Transport struct {
+	Transport http.RoundTripper // Used to make actual requests.
+	limiter		Limiter
+}
+
+// New returns a RoundTripper that throttles HTTP requests.
+func New(transport http.RoundTripper, l ...Limiter) *Transport {
+	return &Transport{
+		Transport: transport,
+		limiter:	 NewGroup(l...),
+	}
+}
+
+// NewWithDefaultTransport returns a RoundTripper that throttles HTTP requests.
+func NewWithDefaultTransport(l ...Limiter) *Transport {
+	return New(http.DefaultTransport, l...)
+}
+
+// RoundTrip ensures requests are executed within the limiting constraints.
+func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if err := t.limiter.Wait(r.Context()); err != nil {
+		return nil, err
+	}
+
+	if t.Transport == nil {
+		t.Transport = http.DefaultTransport
+	}
+
+	return t.Transport.RoundTrip(r)
+}

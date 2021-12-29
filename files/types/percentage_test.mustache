@@ -1,0 +1,19 @@
+{{>partial_header}}
+package types_test
+
+import (
+	"testing"
+
+	"github.com/{{gitUserId}}/{{gitRepoId}}/types"
+)
+
+func TestPercentage(t *testing.T) {
+	t.Run("returns percentage", func(t *testing.T) {
+	percentage := types.Percentage(55)
+		got := percentage.String()
+		want := "55.00%"
+		if got != want {
+			t.Errorf("expected: %s, got: %s", want, got)
+		}
+	})
+}

@@ -1,0 +1,11 @@
+{{>partial_header}}
+package types
+
+import "fmt"
+
+// Filesize represents a floating point filesize value.
+type Filesize float32
+
+func (f Filesize) String() string {
+	return fmt.Sprintf("%.2fkB", f)
+}

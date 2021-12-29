@@ -1,0 +1,15 @@
+{{>partial_header}}
+package backoff
+
+import "time"
+
+// Constant is a default implementation for a backoff strategy with constant
+// backoff.
+type Constant struct{
+	BaseDelay time.Duration
+}
+
+// Backoff returns the duration to wait.
+func (b Constant) Backoff(retries int) time.Duration {
+	return b.BaseDelay
+}

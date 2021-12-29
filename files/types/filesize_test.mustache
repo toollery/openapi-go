@@ -1,0 +1,19 @@
+{{>partial_header}}
+package types_test
+
+import (
+	"testing"
+
+	"github.com/{{gitUserId}}/{{gitRepoId}}/types"
+)
+
+func TestFilesize(t *testing.T) {
+	t.Run("returns filesize in kB", func(t *testing.T) {
+	size := types.Filesize(1024)
+		got := size.String()
+		want := "1024.00kB"
+		if got != want {
+			t.Errorf("expected: %s, got: %s", want, got)
+		}
+	})
+}

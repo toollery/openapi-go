@@ -1,0 +1,27 @@
+{{>partial_header}}
+package backoff
+
+import "time"
+
+// Linear is an implementation of a backoff strategy applying a linear
+// function.
+type Linear struct {
+	Config
+}
+
+// Backoff returns the duration to wait.
+func (b Linear) Backoff(retries int) time.Duration {
+	if retries == 0 {
+		return b.BaseDelay
+	}
+
+	backoff, max := float64(b.BaseDelay), float64(b.MaxDelay)
+	backoff *= b.Multiplier * float64(retries)
+
+	if backoff > max {
+		backoff = max
+	}
+
+	backoff = addJitter(backoff, b.Jitter)
+	return time.Duration(backoff)
+}

@@ -1,0 +1,11 @@
+{{>partial_header}}
+package types
+
+import "fmt"
+
+// Percentage represents a floating point percentage value.
+type Percentage float32
+
+func (f Percentage) String() string {
+	return fmt.Sprintf("%.2f%%", f)
+}

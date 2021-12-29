@@ -1,0 +1,25 @@
+{{>partial_header}}
+package throttle
+
+import "context"
+
+// Group represents a slice of constraints that must all be satisfied to
+// succeed.
+type Group struct {
+	limiters []Limiter
+}
+
+// NewGroup returns a new group of Limiters.
+func NewGroup(l ...Limiter) *Group {
+	return &Group{limiters: l}
+}
+
+// Wait invoke the Wait method of all limiters concurrently.
+func (l *Group) Wait(ctx context.Context) error {
+	for _, l := range l.limiters {
+		if err := l.Wait(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}

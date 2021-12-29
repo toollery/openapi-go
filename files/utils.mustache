@@ -1,0 +1,65 @@
+{{>partial_header}}
+package {{packageName}}
+
+// This file contains functions that could not be included closer to the caller
+// becasue they would have either been duplicated when generated, or may
+// otherwise have caused syntax errors when generated due to unused imports. As
+// such some of the functions may not be used in the generated source.
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+	"unicode/utf8"
+)
+
+// PtrBool is a helper routine that returns a pointer to given boolean value.
+func PtrBool(v bool) *bool { return &v }
+
+// PtrInt is a helper routine that returns a pointer to given integer value.
+func PtrInt(v int) *int { return &v }
+
+// PtrInt32 is a helper routine that returns a pointer to given integer value.
+func PtrInt32(v int32) *int32 { return &v }
+
+// PtrInt64 is a helper routine that returns a pointer to given integer value.
+func PtrInt64(v int64) *int64 { return &v }
+
+// PtrFloat32 is a helper routine that returns a pointer to given float value.
+func PtrFloat32(v float32) *float32 { return &v }
+
+// PtrFloat64 is a helper routine that returns a pointer to given float value.
+func PtrFloat64(v float64) *float64 { return &v }
+
+// PtrString is a helper routine that returns a pointer to given string value.
+func PtrString(v string) *string { return &v }
+
+// PtrTime is helper routine that returns a pointer to given Time value.
+func PtrTime(v time.Time) *time.Time { return &v }
+
+// atoi is a convenience function to call strconv.Atoi.
+func atoi(in string) (int, error) {
+	return strconv.Atoi(in)
+}
+
+// contains is a case insensitive match, finding needle in a haystack.
+func contains(haystack []string, needle string) bool {
+	for _, a := range haystack {
+		if strings.ToLower(a) == strings.ToLower(needle) {
+			return true
+		}
+	}
+	return false
+}
+
+// strlen returns the length of a string.
+func strlen(s string) int {
+	return utf8.RuneCountInString(s)
+}
+
+// errorf is a wrapper around fmt.Errorf necessary to prevent unused import
+// from individual api files.
+func errorf(format string, v ...interface{}) error {
+	return fmt.Errorf(format, v...)
+}

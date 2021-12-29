@@ -1,0 +1,46 @@
+{{>partial_header}}
+package {{packageName}}
+
+// APIError represents an error returned from the API. This type abstracts the
+// different payloads that can be returned from the API in response to an error
+// which would otherwise add unnecessary compexity to the interface of this
+// package.
+type APIError struct {
+	Status  int
+	Message string              `json:"message,omitempty"`
+	Errors  map[string][]string `json:"errors,omitempty"`
+
+	// Wrap the parent error in case it is of any use.
+	parent error
+}
+
+// NewAPIError returns a structured error type from an API response.
+func NewAPIError(message string, parent error) APIError {
+	return APIError{
+		Message: message,
+		parent:  parent,
+	}
+}
+
+func (e APIError) Error() string {
+	if e.parent != nil {
+		return e.parent.Error() + ": " + e.Message
+	}
+
+	return e.Message
+}
+
+func (e APIError) Unwrap() error {
+	return e.parent
+}
+
+// Errors returns the map of error messages contained in an APIError. If the
+// error passed into the function cannot be asserted to be of type APIError
+// then an empty map is returned.
+func Errors(err error) map[string][]string {
+	if e, ok := err.(APIError); ok {
+		return e.Errors
+	}
+
+	return map[string][]string{}
+}

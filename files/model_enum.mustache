@@ -1,0 +1,45 @@
+// {{{classname}}} {{#description}}{{{.}}}{{/description}}{{^description}}the model '{{{classname}}}'{{/description}}
+type {{{classname}}} {{^format}}{{dataType}}{{/format}}{{#format}}{{{format}}}{{/format}}
+
+const (
+{{#allowableValues}}
+{{#enumVars}}
+{{^-first}}
+{{/-first}}
+	// {{#enumClassPrefix}}{{{classname}}}{{/enumClassPrefix}}{{name}} {{enumDescription}}.
+	{{#enumClassPrefix}}{{{classname}}}{{/enumClassPrefix}}{{name}} {{{classname}}} = {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+)
+
+// Unmarshal JSON data into any of the pointers in the type.
+func (v *{{{classname}}}) UnmarshalJSON(src []byte) error {
+	var value {{^format}}{{dataType}}{{/format}}{{#format}}{{{format}}}{{/format}}
+	if err := json.Unmarshal(src, &value); err != nil {
+		return err
+	}
+
+	ev := {{{classname}}}(value)
+	if !ev.Valid() {
+		return fmt.Errorf("%+v is not a valid {{classname}}", value)
+	}
+
+	*v = ev
+	return nil
+}
+
+// Valid determines if the value is valid.
+func (v {{{classname}}}) Valid() bool {
+	return {{#allowableValues}}{{#enumVars}}{{^-first}} || {{/-first}}v == {{#enumClassPrefix}}{{{classname}}}{{/enumClassPrefix}}{{name}}{{/enumVars}}{{/allowableValues}}
+}
+
+// {{{classname}}}Values returns the values of {{{classname}}}.
+func {{{classname}}}Values() []{{dataType}} {
+	return []{{dataType}}{
+  {{#allowableValues}}
+  {{#enumVars}}
+		{{{value}}},
+  {{/enumVars}}
+  {{/allowableValues}}
+	}
+}
