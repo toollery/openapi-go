@@ -1,4 +1,4 @@
-# openapi-go
+# openapi-go ![test](https://github.com/toollery/openapi-go/workflows/test/badge.svg?event=push)
 
 An OpenAPI Generator template for Go API clients. This set of templates are
 intended to replace those that are built into the OpenAPI Generator tool,
